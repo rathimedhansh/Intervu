@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* Brief settle-in for a freshly rendered interview question — reinforces
+   that a new question just arrived without being distracting (see
+   InterviewPage.jsx, keyed on the question id so it replays each turn). */
+@keyframes question-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-question-fade-in {
+  animation: question-fade-in 0.25s ease-out;
+}

@@ -11,6 +11,7 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const notice = location.state?.notice
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -28,66 +29,73 @@ function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
-      <h1 className="mb-2 text-2xl font-semibold text-slate-900">Log in</h1>
-      <p className="mb-8 text-slate-600">
-        Welcome back. Enter your details to continue.
-      </p>
+    <div className="mx-auto max-w-sm py-8">
+      <div className="surface-card p-6 sm:p-8">
+        <h1 className="mb-1.5 text-2xl font-semibold tracking-tight text-ink">Log in</h1>
+        <p className="mb-8 text-sm text-ink-muted">
+          Welcome back. Enter your details to continue.
+        </p>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div>
-          <label
-            htmlFor="email"
-            className="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-          />
-        </div>
+        {notice && (
+          <p className="mb-4 rounded-lg border border-success/30 bg-success-soft px-3 py-2 text-sm text-success">
+            {notice}
+          </p>
+        )}
 
-        <div>
-          <label
-            htmlFor="password"
-            className="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink-muted">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="input-field"
+            />
+          </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-ink-muted">
+                Password
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-xs font-medium text-accent hover:text-accent-hover"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="input-field"
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {isSubmitting ? 'Logging in...' : 'Log in'}
-        </button>
-      </form>
+          {error && (
+            <p className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
+              {error}
+            </p>
+          )}
 
-      <p className="mt-6 text-sm text-slate-600">
+          <button type="submit" disabled={isSubmitting} className="btn btn-primary mt-2 w-full">
+            {isSubmitting ? 'Logging in...' : 'Log in'}
+          </button>
+        </form>
+      </div>
+
+      <p className="mt-6 text-center text-sm text-ink-muted">
         Don&apos;t have an account?{' '}
-        <Link
-          to="/signup"
-          className="font-medium text-indigo-600 hover:text-indigo-700"
-        >
+        <Link to="/signup" className="font-medium text-accent hover:text-accent-hover">
           Sign up
         </Link>
       </p>

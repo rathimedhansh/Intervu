@@ -35,90 +35,76 @@ function SignupPage() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
-      <h1 className="mb-2 text-2xl font-semibold text-slate-900">
-        Create your account
-      </h1>
-      <p className="mb-8 text-slate-600">
-        Track your interview practice and progress over time.
-      </p>
+    <div className="mx-auto max-w-sm py-8">
+      <div className="surface-card p-6 sm:p-8">
+        <h1 className="mb-1.5 text-2xl font-semibold tracking-tight text-ink">Create your account</h1>
+        <p className="mb-8 text-sm text-ink-muted">
+          Track your interview practice and progress over time.
+        </p>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div>
-          <label
-            htmlFor="name"
-            className="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Name
-          </label>
-          <input
-            id="name"
-            type="text"
-            autoComplete="name"
-            required
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-ink-muted">
+              Name
+            </label>
+            <input
+              id="name"
+              type="text"
+              autoComplete="name"
+              required
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="input-field"
+            />
+          </div>
 
-        <div>
-          <label
-            htmlFor="email"
-            className="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-          />
-        </div>
+          <div>
+            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink-muted">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="input-field"
+            />
+          </div>
 
-        <div>
-          <label
-            htmlFor="password"
-            className="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={MIN_PASSWORD_LENGTH}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-          />
-          <p className="mt-1 text-xs text-slate-500">
-            At least {MIN_PASSWORD_LENGTH} characters.
-          </p>
-        </div>
+          <div>
+            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-ink-muted">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={MIN_PASSWORD_LENGTH}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="input-field"
+            />
+            <p className="mt-1.5 text-xs text-ink-faint">At least {MIN_PASSWORD_LENGTH} characters.</p>
+          </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <p className="rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
+              {error}
+            </p>
+          )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {isSubmitting ? 'Creating account...' : 'Sign up'}
-        </button>
-      </form>
+          <button type="submit" disabled={isSubmitting} className="btn btn-primary mt-2 w-full">
+            {isSubmitting ? 'Creating account...' : 'Sign up'}
+          </button>
+        </form>
+      </div>
 
-      <p className="mt-6 text-sm text-slate-600">
+      <p className="mt-6 text-center text-sm text-ink-muted">
         Already have an account?{' '}
-        <Link
-          to="/login"
-          className="font-medium text-indigo-600 hover:text-indigo-700"
-        >
+        <Link to="/login" className="font-medium text-accent hover:text-accent-hover">
           Log in
         </Link>
       </p>

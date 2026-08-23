@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -32,6 +34,18 @@ def create_access_token(user_id: int) -> str:
     )
     payload = {"sub": str(user_id), "exp": expires_at}
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def generate_password_reset_token() -> tuple[str, str]:
+    """Return (plaintext_token, token_hash). Only the hash is ever stored;
+    the plaintext is put in the reset link and never persisted."""
+    plaintext = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
+    return plaintext, token_hash
+
+
+def hash_reset_token(plaintext_token: str) -> str:
+    return hashlib.sha256(plaintext_token.encode("utf-8")).hexdigest()
 
 
 def decode_access_token(token: str) -> int | None:

@@ -224,10 +224,24 @@ export function useDictation(onTranscript) {
 
       recognition.onerror = (event) => {
         console.warn(DEBUG_PREFIX, 'onerror:', event.error, event.message || '(no message)')
-        // "no-speech"/"aborted" are routine (a brief pause, or a paused
-        // engine being torn down) — only surface genuinely unexpected
-        // failures.
-        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        // "aborted" is routine (a paused engine being torn down) — never
+        // surface it.
+        //
+        // "no-speech" is different from what its name suggests: Chrome
+        // fires it not only for genuine silence but routinely for short or
+        // quiet utterances (a one-word answer like "yes" is a common
+        // trigger) where the recognizer never became confident enough to
+        // emit ANY result — final or interim. Silently ignoring it (the
+        // old behavior) left the user with an empty answer box and a
+        // disabled Submit button with no explanation, indistinguishable
+        // from a broken pipeline. Surface it as an actionable, non-blocking
+        // hint instead — capturing keeps running, nothing is force-enabled,
+        // no transcript is faked — the user just learns *why* nothing
+        // showed up, while they're still capturing, so they can immediately
+        // try again or fall back to typing.
+        if (event.error === 'no-speech') {
+          if (isCapturingRef.current) setStatus('no-speech')
+        } else if (event.error !== 'aborted') {
           setError(event.error || 'unknown-error')
           setStatus('error')
         }

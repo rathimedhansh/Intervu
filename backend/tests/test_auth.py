@@ -13,6 +13,7 @@ Run from backend/: venv/Scripts/python.exe -m unittest discover -s tests -v
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -22,6 +23,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401 — registers all models on Base
+from app.core.config import settings
 from app.db.base import Base
 from app.db.database import get_db
 from app.main import app
@@ -407,6 +409,105 @@ class TestResumeIsolation(AuthTestCase):
         listing = self.client.get("/api/resumes/", headers=self._auth_headers(token))
         self.assertEqual(listing.status_code, 200)
         self.assertEqual(listing.json(), [])
+
+
+class TestForgotAndResetPassword(AuthTestCase):
+    def test_forgot_password_returns_link_for_registered_email_in_dev_mode(self):
+        self._signup(email="reset-me@example.com")
+        response = self.client.post(
+            "/api/auth/forgot-password", json={"email": "reset-me@example.com"}
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertIsNotNone(body["reset_link"])
+        self.assertIn("token=", body["reset_link"])
+
+    def test_forgot_password_does_not_reveal_whether_email_exists(self):
+        registered = self.client.post(
+            "/api/auth/forgot-password", json={"email": "never-signed-up@example.com"}
+        )
+        self._signup(email="reset-me2@example.com")
+        unregistered = self.client.post(
+            "/api/auth/forgot-password", json={"email": "reset-me2@example.com"}
+        )
+        # Same status code and detail message either way — only reset_link
+        # differs, and only because one email has no account to email a
+        # link to.
+        self.assertEqual(registered.status_code, unregistered.status_code)
+        self.assertEqual(registered.json()["detail"], unregistered.json()["detail"])
+        self.assertIsNone(registered.json()["reset_link"])
+
+    def test_forgot_password_omits_link_when_dev_mode_disabled(self):
+        self._signup(email="prod-like@example.com")
+        with patch.object(settings, "password_reset_dev_mode", False):
+            response = self.client.post(
+                "/api/auth/forgot-password", json={"email": "prod-like@example.com"}
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["reset_link"])
+
+    def _request_reset_token(self, email: str) -> str:
+        response = self.client.post("/api/auth/forgot-password", json={"email": email})
+        link = response.json()["reset_link"]
+        return link.rsplit("token=", 1)[1]
+
+    def test_reset_password_with_valid_token_allows_new_login(self):
+        self._signup(email="reset3@example.com", password="oldpassword1")
+        token = self._request_reset_token("reset3@example.com")
+
+        response = self.client.post(
+            "/api/auth/reset-password",
+            json={"token": token, "new_password": "brandnewpassword1"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+        old_login = self._login(email="reset3@example.com", password="oldpassword1")
+        self.assertEqual(old_login.status_code, 401)
+        new_login = self._login(email="reset3@example.com", password="brandnewpassword1")
+        self.assertEqual(new_login.status_code, 200)
+
+    def test_reset_token_is_single_use(self):
+        self._signup(email="reset4@example.com", password="oldpassword1")
+        token = self._request_reset_token("reset4@example.com")
+
+        first = self.client.post(
+            "/api/auth/reset-password",
+            json={"token": token, "new_password": "firstnewpassword1"},
+        )
+        self.assertEqual(first.status_code, 200)
+
+        second = self.client.post(
+            "/api/auth/reset-password",
+            json={"token": token, "new_password": "secondnewpassword1"},
+        )
+        self.assertEqual(second.status_code, 400)
+
+    def test_reset_password_rejects_unknown_token(self):
+        response = self.client.post(
+            "/api/auth/reset-password",
+            json={"token": "not-a-real-token", "new_password": "somenewpassword1"},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_reset_password_rejects_expired_token(self):
+        self._signup(email="reset5@example.com", password="oldpassword1")
+        with patch.object(settings, "password_reset_expire_minutes", -1):
+            token = self._request_reset_token("reset5@example.com")
+
+        response = self.client.post(
+            "/api/auth/reset-password",
+            json={"token": token, "new_password": "somenewpassword1"},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_reset_password_rejects_short_password(self):
+        self._signup(email="reset6@example.com")
+        token = self._request_reset_token("reset6@example.com")
+        response = self.client.post(
+            "/api/auth/reset-password",
+            json={"token": token, "new_password": "short"},
+        )
+        self.assertEqual(response.status_code, 422)
 
 
 if __name__ == "__main__":

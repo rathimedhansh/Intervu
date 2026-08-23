@@ -10,6 +10,7 @@ import ErrorState from '../components/ErrorState'
 import { categoryLabel } from '../constants/rubricCategories'
 import { useCameraAnalysis } from '../hooks/useCameraAnalysis'
 import { useDictation } from '../hooks/useDictation'
+import { computeSharedMicMirror } from '../hooks/sharedMicMirror'
 import { useSpeechAnalysis } from '../hooks/useSpeechAnalysis'
 
 const MAX_TEXTAREA_HEIGHT = 400
@@ -24,9 +25,15 @@ function wordCount(text) {
 }
 
 const PILL_TONE = {
-  slate: 'bg-slate-100 text-slate-600',
-  emerald: 'bg-emerald-50 text-emerald-700',
-  amber: 'bg-amber-50 text-amber-700',
+  slate: 'bg-surface-2 text-ink-muted',
+  emerald: 'bg-success-soft text-success',
+  amber: 'bg-warning-soft text-warning',
+}
+
+const PILL_DOT_TONE = {
+  slate: 'bg-ink-faint',
+  emerald: 'bg-success',
+  amber: 'bg-warning',
 }
 
 function StatusPill({ tone = 'slate', pulsing, children }) {
@@ -34,7 +41,9 @@ function StatusPill({ tone = 'slate', pulsing, children }) {
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${PILL_TONE[tone]}`}
     >
-      {pulsing && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />}
+      {pulsing && (
+        <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${PILL_DOT_TONE[tone]}`} />
+      )}
       {children}
     </span>
   )
@@ -45,11 +54,11 @@ function StatusPill({ tone = 'slate', pulsing, children }) {
 // actually doing something?" moment, so it gets more than a line of text.
 function ThinkingIndicator() {
   return (
-    <div className="flex items-center gap-2.5 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2.5 text-sm text-indigo-700">
+    <div className="flex items-center gap-2.5 rounded-lg border border-accent-border bg-accent-soft px-3 py-2.5 text-sm text-accent">
       <span className="flex items-center gap-1" aria-hidden="true">
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-400 [animation-delay:-0.3s]" />
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-400 [animation-delay:-0.15s]" />
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-400" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent [animation-delay:-0.3s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent [animation-delay:-0.15s]" />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-accent" />
       </span>
       <span>The AI is reviewing your answer and preparing the next question&hellip;</span>
     </div>
@@ -148,16 +157,18 @@ function InterviewPage() {
   }, [currentQuestion?.id])
 
   useEffect(() => {
-    if (!canCaptureShared) return
-    if (sharedCapturing) {
-      tailArmedRef.current = true
-    } else if (!tailArmedRef.current) {
-      return
+    const decision = computeSharedMicMirror({
+      canCaptureShared,
+      sharedCapturing,
+      tailArmed: tailArmedRef.current,
+      liveTranscript: speech.liveTranscript,
+      lastMirrored: lastMirroredTranscriptRef.current,
+    })
+    tailArmedRef.current = decision.tailArmed
+    if (decision.commit) {
+      lastMirroredTranscriptRef.current = decision.text
+      setAnswerText(decision.text)
     }
-    if (speech.liveTranscript === lastMirroredTranscriptRef.current) return
-    lastMirroredTranscriptRef.current = speech.liveTranscript
-    setAnswerText(speech.liveTranscript)
-    if (!sharedCapturing) tailArmedRef.current = false
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canCaptureShared, sharedCapturing, speech.liveTranscript])
 
@@ -313,11 +324,11 @@ function InterviewPage() {
     return (
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 py-16 text-center">
         <span className="flex gap-1.5" aria-hidden="true">
-          <span className="h-2 w-2 animate-bounce rounded-full bg-indigo-300 [animation-delay:-0.3s]" />
-          <span className="h-2 w-2 animate-bounce rounded-full bg-indigo-300 [animation-delay:-0.15s]" />
-          <span className="h-2 w-2 animate-bounce rounded-full bg-indigo-300" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-accent [animation-delay:-0.3s]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-accent [animation-delay:-0.15s]" />
+          <span className="h-2 w-2 animate-bounce rounded-full bg-accent" />
         </span>
-        <p className="text-slate-600">
+        <p className="text-ink-muted">
           {isFinishing ? 'Finishing up your interview...' : 'Loading interview...'}
         </p>
       </div>
@@ -330,44 +341,44 @@ function InterviewPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-1 text-2xl font-semibold text-slate-900">AI Interviewer</h1>
-      <p className="mb-1 text-slate-600">
+      <h1 className="mb-1 text-2xl font-semibold text-ink">AI Interviewer</h1>
+      <p className="mb-1 text-ink-muted">
         {interview.role} &middot; started at {capitalize(interview.difficulty)} difficulty
       </p>
-      <p className="mb-4 text-xs font-medium text-indigo-600">
+      <p className="mb-4 text-xs font-medium text-accent">
         {interview.focus_categories?.length > 0 &&
           `Focused practice: ${interview.focus_categories.map(categoryLabel).join(', ')}`}
       </p>
 
       <div className="mb-6">
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-medium text-slate-700">
+          <span className="text-sm font-medium text-ink-muted">
             Question {questionsAsked + 1} of {questionCount ?? '—'}
           </span>
           <span className="flex items-center gap-1.5">
             {currentDifficulty && (
               <span
                 title="Difficulty adapts to your recent answers"
-                className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-500"
+                className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-ink-muted"
               >
                 {capitalize(currentDifficulty)}
               </span>
             )}
             {currentQuestion?.is_followup && (
-              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-indigo-600">
+              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-accent">
                 Follow-up
               </span>
             )}
           </span>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
           <div
-            className="h-full rounded-full bg-indigo-600 transition-all duration-500 ease-out"
+            className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
         {difficultyNotice && (
-          <p className="mt-1.5 text-xs text-slate-500">{difficultyNotice}</p>
+          <p className="mt-1.5 text-xs text-ink-faint">{difficultyNotice}</p>
         )}
       </div>
 
@@ -378,17 +389,14 @@ function InterviewPage() {
         cameraStatus={camera.status}
       />
 
-      <div
-        key={currentQuestion?.id}
-        className="animate-question-fade-in rounded-lg border border-slate-200 bg-white p-4"
-      >
+      <div key={currentQuestion?.id} className="surface-card animate-question-fade-in p-4">
         {currentQuestion?.source === 'resume' && (
-          <span className="mb-2 inline-block rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-indigo-600">
+          <span className="mb-2 inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-accent">
             From your resume
             {currentQuestion.resume_topic ? ` · ${currentQuestion.resume_topic}` : ''}
           </span>
         )}
-        <p className="mb-3 text-lg font-medium leading-snug text-slate-900">
+        <p className="mb-3 text-lg font-medium leading-snug text-ink">
           {currentQuestion?.text}
         </p>
 
@@ -400,8 +408,8 @@ function InterviewPage() {
               disabled={isSubmitting}
               className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 dictation.isListening
-                  ? 'border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100'
-                  : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                  ? 'border-danger/30 bg-danger-soft text-danger hover:bg-danger-soft/70'
+                  : 'border-border text-ink-muted hover:bg-surface-2'
               }`}
             >
               {dictation.isListening ? '⏹ Stop Answer' : '🎙 Start Answer'}
@@ -414,8 +422,13 @@ function InterviewPage() {
                 {dictation.status === 'speech-detected' ? 'Speech detected' : 'Listening'}
               </StatusPill>
             )}
+            {dictation.status === 'no-speech' && (
+              <StatusPill tone="amber">
+                Didn&apos;t catch that — try speaking again, closer to the mic
+              </StatusPill>
+            )}
             {dictation.errorMessage && (
-              <span className="text-xs text-amber-700">{dictation.errorMessage}</span>
+              <span className="text-xs text-warning">{dictation.errorMessage}</span>
             )}
           </div>
         )}
@@ -427,8 +440,8 @@ function InterviewPage() {
               disabled={isSubmitting}
               className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 sharedCapturing
-                  ? 'border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100'
-                  : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                  ? 'border-danger/30 bg-danger-soft text-danger hover:bg-danger-soft/70'
+                  : 'border-border text-ink-muted hover:bg-surface-2'
               }`}
             >
               {sharedCapturing ? '⏹ Stop Answer' : '🎙 Start Answer'}
@@ -441,7 +454,7 @@ function InterviewPage() {
           </div>
         )}
         {!dictation.supported && useOwnDictationMic && (
-          <p className="mb-2 text-xs text-slate-500">
+          <p className="mb-2 text-xs text-ink-faint">
             Voice input isn&apos;t supported in this browser — type your answer below.
           </p>
         )}
@@ -466,14 +479,14 @@ function InterviewPage() {
               : 'Type your answer, or click Start Answer to capture your speech-analysis mic here...'
           }
           disabled={isSubmitting}
-          className="w-full resize-none overflow-y-auto rounded-lg border border-slate-300 p-3 transition-shadow focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="input-field resize-none overflow-y-auto"
           style={{ maxHeight: MAX_TEXTAREA_HEIGHT }}
         />
-        <div className="mt-1.5 flex items-center justify-between text-xs text-slate-400">
+        <div className="mt-1.5 flex items-center justify-between text-xs text-ink-faint">
           <span className="flex items-center gap-1.5">
             {isListening && (
               <>
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-danger" />
                 Recording
               </>
             )}
@@ -482,9 +495,13 @@ function InterviewPage() {
         </div>
       </div>
 
-      {notice && <p className="mt-3 text-sm text-indigo-700">{notice}</p>}
+      {notice && (
+        <p className="mt-3 rounded-lg border border-accent-border bg-accent-soft px-3 py-2 text-sm text-accent">
+          {notice}
+        </p>
+      )}
       {error && (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mt-3 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
           {error}
         </p>
       )}
@@ -494,12 +511,12 @@ function InterviewPage() {
         <button
           onClick={handleSubmit}
           disabled={isSubmitting || !answerText.trim()}
-          className="w-full shrink-0 rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          className="btn btn-primary w-full shrink-0 sm:w-auto"
         >
           {isSubmitting ? 'Submitting...' : 'Submit Answer'}
         </button>
       </div>
-      <p className="mt-2 hidden text-right text-xs text-slate-400 sm:block">
+      <p className="mt-2 hidden text-right text-xs text-ink-faint sm:block">
         Tip: Ctrl+Enter (Cmd+Enter on Mac) submits your answer.
       </p>
     </div>

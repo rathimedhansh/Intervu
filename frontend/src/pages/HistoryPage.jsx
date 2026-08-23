@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { deleteInterview, listInterviews } from '../api/interviews'
 import DifficultyBadge from '../components/DifficultyBadge'
 import ErrorState from '../components/ErrorState'
+import EmptyState from '../components/EmptyState'
+import { SkeletonPage } from '../components/Skeleton'
+import { IconClock } from '../components/icons'
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'All' },
@@ -22,36 +25,9 @@ function formatDate(dateString) {
 function StatusBadge({ status }) {
   const isCompleted = status === 'completed'
   return (
-    <span
-      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-        isCompleted ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'
-      }`}
-    >
+    <span className={`badge ${isCompleted ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-muted'}`}>
       {isCompleted ? 'Completed' : 'In progress'}
     </span>
-  )
-}
-
-function EmptyState({ hasAnyInterviews }) {
-  return (
-    <div className="flex flex-col items-center rounded-lg border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
-      <h2 className="text-lg font-semibold text-slate-900">
-        {hasAnyInterviews ? 'No interviews match these filters' : 'No interviews yet'}
-      </h2>
-      <p className="mt-2 max-w-sm text-slate-600">
-        {hasAnyInterviews
-          ? 'Try a different role or status filter.'
-          : 'Every interview you start or complete will show up here, so you can always find and revisit it later.'}
-      </p>
-      {!hasAnyInterviews && (
-        <Link
-          to="/setup"
-          className="mt-6 rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-indigo-700"
-        >
-          Start Your First Interview
-        </Link>
-      )}
-    </div>
   )
 }
 
@@ -107,13 +83,13 @@ function HistoryPage() {
   }
 
   if (!interviews) {
-    return <p className="text-slate-600">Loading interview history...</p>
+    return <SkeletonPage />
   }
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-semibold text-slate-900">Interview History</h1>
-      <p className="mb-8 text-slate-600">
+      <h1 className="mb-2 text-2xl font-semibold text-ink">Interview History</h1>
+      <p className="mb-8 text-ink-muted">
         Every interview you've started or completed — resume one that's still in
         progress, or revisit past results.
       </p>
@@ -127,10 +103,8 @@ function HistoryPage() {
                 type="button"
                 onClick={() => setStatusFilter(option.value)}
                 aria-pressed={statusFilter === option.value}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                  statusFilter === option.value
-                    ? 'bg-indigo-600 text-white'
-                    : 'border border-slate-300 text-slate-700 hover:bg-slate-100'
+                className={`btn !px-3 !py-1.5 !text-sm ${
+                  statusFilter === option.value ? 'btn-primary' : 'btn-secondary'
                 }`}
               >
                 {option.label}
@@ -142,7 +116,7 @@ function HistoryPage() {
             <select
               value={roleFilter}
               onChange={(event) => setRoleFilter(event.target.value)}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+              className="input-field w-auto !py-1.5"
             >
               <option value="all">All roles</option>
               {roles.map((role) => (
@@ -156,19 +130,29 @@ function HistoryPage() {
       )}
 
       {deleteError && (
-        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mb-4 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger">
           {deleteError}
         </p>
       )}
 
       {filtered.length === 0 ? (
-        <EmptyState hasAnyInterviews={interviews.length > 0} />
+        <EmptyState
+          icon={IconClock}
+          title={interviews.length > 0 ? 'No interviews match these filters' : 'No interviews yet'}
+          description={
+            interviews.length > 0
+              ? 'Try a different role or status filter.'
+              : "Every interview you start or complete will show up here, so you can always find and revisit it later."
+          }
+          ctaTo={interviews.length > 0 ? undefined : '/setup'}
+          ctaLabel={interviews.length > 0 ? undefined : 'Start Your First Interview'}
+        />
       ) : (
-        <div className="rounded-lg border border-slate-200 bg-white">
+        <div className="surface-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-border text-xs uppercase tracking-wide text-ink-faint">
                   <th className="px-4 py-2 font-medium">Date</th>
                   <th className="px-4 py-2 font-medium">Role</th>
                   <th className="px-4 py-2 font-medium">Difficulty</th>
@@ -194,12 +178,12 @@ function HistoryPage() {
                       onKeyDown={(event) => {
                         if (event.key === 'Enter') navigate(target)
                       }}
-                      className="cursor-pointer border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50"
+                      className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-surface-hover"
                     >
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-ink-muted">
                         {formatDate(interview.completed_at || interview.created_at)}
                       </td>
-                      <td className="px-4 py-3 font-medium text-slate-900">
+                      <td className="px-4 py-3 font-medium text-ink">
                         {interview.role}
                       </td>
                       <td className="px-4 py-3">
@@ -208,22 +192,22 @@ function HistoryPage() {
                       <td className="px-4 py-3">
                         <StatusBadge status={interview.status} />
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-ink-muted">
                         {interview.question_count ?? '—'}
                       </td>
-                      <td className="px-4 py-3 font-semibold text-slate-900">
+                      <td className="px-4 py-3 font-semibold text-ink">
                         {isCompleted
                           ? interview.overall_score != null
                             ? `${interview.overall_score}/100`
                             : '—'
-                          : <span className="font-normal text-indigo-600">Continue &rarr;</span>}
+                          : <span className="font-normal text-accent">Continue &rarr;</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           type="button"
                           onClick={(event) => handleDelete(event, interview)}
                           disabled={deletingId === interview.id}
-                          className="text-xs font-medium text-slate-400 transition-colors hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="text-xs font-medium text-ink-faint transition-colors hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {deletingId === interview.id ? 'Deleting...' : 'Delete'}
                         </button>

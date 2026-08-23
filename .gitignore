@@ -1,9 +1,48 @@
+# --- Dependencies ---
 node_modules/
+
+# --- Build output ---
 frontend/dist/
+dist/
+build/
+
+# --- Python ---
 backend/venv/
+.venv/
+venv/
+__pycache__/
 backend/__pycache__/
 backend/**/__pycache__/
-backend/app.db
-backend/uploads/
 *.pyc
+*.pyo
+.pytest_cache/
+
+# --- Secrets / environment ---
 .env
+.env.*
+!.env.example
+!*/.env.example
+
+# --- App data (never commit local DB or user uploads) ---
+backend/app.db
+*.db
+*.sqlite
+*.sqlite3
+backend/uploads/
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS-specific ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Temporary files ---
+*.tmp
+*.temp
+*.log

@@ -48,6 +48,18 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
 
+    # Password reset. No outbound email provider is wired up yet, so in dev
+    # mode the reset link is logged server-side AND returned directly in the
+    # API response, so the flow is fully testable without an inbox. Before
+    # deploying to real users: wire an actual mailer (SMTP/SendGrid/etc.),
+    # send the link there instead, and set PASSWORD_RESET_DEV_MODE=false so
+    # the link is never handed back over the API.
+    password_reset_dev_mode: bool = True
+    password_reset_expire_minutes: int = 30
+    # Used to build the reset link the user clicks (frontend route, not an
+    # API URL). Must match wherever the frontend is actually served.
+    frontend_base_url: str = "http://localhost:5173"
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     # An empty JWT_SECRET_KEY in the environment (e.g. .env copied from

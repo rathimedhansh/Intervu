@@ -33,3 +33,22 @@ class TokenRead(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserRead
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+# Always the same shape/message regardless of whether the email is
+# registered — never lets a caller probe which emails have accounts.
+# reset_link is only ever populated in dev mode (see
+# Settings.password_reset_dev_mode); in production it's always None and the
+# link only ever reaches the user via a real, separately-configured mailer.
+class ForgotPasswordResponse(BaseModel):
+    detail: str = "If that email is registered, a password reset link has been generated."
+    reset_link: str | None = None
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=_MAX_PASSWORD_LENGTH)

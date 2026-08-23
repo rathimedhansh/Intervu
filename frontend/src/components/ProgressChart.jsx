@@ -59,6 +59,13 @@ function ProgressChart({ points }) {
         onMouseMove={handleMove}
         onMouseLeave={() => setHoverIndex(null)}
       >
+        <defs>
+          <linearGradient id="progress-line-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3d7fff" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#3d7fff" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
         {Y_TICKS.map((tick) => (
           <g key={tick}>
             <line
@@ -66,7 +73,7 @@ function ProgressChart({ points }) {
               x2={WIDTH - PADDING.right}
               y1={yFor(tick)}
               y2={yFor(tick)}
-              stroke="#e2e8f0"
+              stroke="rgba(255,255,255,0.06)"
               strokeWidth="1"
             />
             <text
@@ -74,7 +81,7 @@ function ProgressChart({ points }) {
               y={yFor(tick)}
               textAnchor="end"
               dominantBaseline="middle"
-              className="fill-slate-400 text-[10px]"
+              className="fill-ink-faint text-[10px]"
             >
               {tick}
             </text>
@@ -83,9 +90,17 @@ function ProgressChart({ points }) {
 
         {points.length > 1 && (
           <path
+            d={`${linePath} L ${xFor(points.length - 1)} ${yFor(0)} L ${xFor(0)} ${yFor(0)} Z`}
+            fill="url(#progress-line-fill)"
+            stroke="none"
+          />
+        )}
+
+        {points.length > 1 && (
+          <path
             d={linePath}
             fill="none"
-            stroke="#4f46e5"
+            stroke="#3d7fff"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -97,9 +112,9 @@ function ProgressChart({ points }) {
             key={point.interview_id}
             cx={xFor(index)}
             cy={yFor(point.score)}
-            r={hoverIndex === index ? 6 : 4}
-            fill="#4f46e5"
-            stroke="#fff"
+            r={hoverIndex === index ? 5.5 : 3.5}
+            fill="#08090c"
+            stroke="#3d7fff"
             strokeWidth="2"
           />
         ))}
@@ -109,7 +124,7 @@ function ProgressChart({ points }) {
             x={xFor(points.length - 1)}
             y={yFor(lastPoint.score) - 12}
             textAnchor="end"
-            className="fill-indigo-700 text-[11px] font-semibold"
+            className="fill-cyan text-[11px] font-semibold"
           >
             {lastPoint.score}
           </text>
@@ -121,7 +136,7 @@ function ProgressChart({ points }) {
             x2={xFor(hoverIndex)}
             y1={PADDING.top}
             y2={HEIGHT - PADDING.bottom}
-            stroke="#94a3b8"
+            stroke="rgba(255,255,255,0.16)"
             strokeWidth="1"
           />
         )}
@@ -135,7 +150,7 @@ function ProgressChart({ points }) {
               x={xFor(index)}
               y={HEIGHT - PADDING.bottom + 16}
               textAnchor="middle"
-              className="fill-slate-400 text-[10px]"
+              className="fill-ink-faint text-[10px]"
             >
               {formatDate(point.date)}
             </text>
@@ -145,11 +160,11 @@ function ProgressChart({ points }) {
 
       {hovered && (
         <div
-          className="pointer-events-none absolute top-2 -translate-x-1/2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs shadow-sm"
+          className="surface-card pointer-events-none absolute top-2 -translate-x-1/2 px-2.5 py-1.5 text-xs"
           style={{ left: `${(xFor(hoverIndex) / WIDTH) * 100}%` }}
         >
-          <p className="font-semibold text-slate-900">{hovered.score}/100</p>
-          <p className="text-slate-500">{formatDate(hovered.date)}</p>
+          <p className="font-semibold text-ink">{hovered.score}/100</p>
+          <p className="text-ink-faint">{formatDate(hovered.date)}</p>
         </div>
       )}
     </div>

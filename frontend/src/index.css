@@ -1,4 +1,235 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
+
+/* ---------------------------------------------------------------------
+ * Design tokens — premium dark AI workspace theme.
+ * These generate Tailwind utilities automatically (bg-canvas, text-ink,
+ * border-border, etc.) via Tailwind v4's CSS-based theme config, so pages
+ * compose the same small vocabulary instead of ad hoc hex values.
+ * ------------------------------------------------------------------- */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-canvas: #080b12;
+  --color-canvas-raised: #0b0e16;
+  --color-surface: #0f141d;
+  --color-surface-hover: #131926;
+  --color-surface-2: #141a24;
+  --color-border: #252d3a;
+  --color-border-strong: #34404f;
+
+  --color-ink: #f8fafc;
+  --color-ink-muted: #94a3b8;
+  --color-ink-faint: #64748b;
+
+  --color-accent: #3b82f6;
+  --color-accent-hover: #60a5fa;
+  --color-accent-soft: rgba(59, 130, 246, 0.12);
+  --color-accent-border: rgba(59, 130, 246, 0.4);
+  --color-cyan: #22d3ee;
+  --color-cyan-soft: rgba(34, 211, 238, 0.12);
+
+  --color-success: #34d399;
+  --color-success-soft: rgba(52, 211, 153, 0.12);
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgba(251, 191, 36, 0.12);
+  --color-danger: #f87171;
+  --color-danger-soft: rgba(248, 113, 113, 0.12);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+/* Native <select> popup listbox. `color-scheme: dark` on <html> alone
+ * isn't enough here: the closed control's text color (var(--color-ink),
+ * near-white, via .input-field) is inherited by every <option>, but
+ * Chromium's native open-popup background doesn't reliably inherit the
+ * closed control's background-color — it can fall back to a light/white
+ * system background, leaving light text on a light background for every
+ * option except whichever one the OS highlights. Chromium (unlike most
+ * other engines) does respect explicit background-color/color set
+ * directly on <select>/<option>, so set them explicitly rather than
+ * relying on color-scheme alone. */
+select {
+  color-scheme: dark;
+}
+
+select,
+option {
+  background-color: var(--color-surface-2);
+  color: var(--color-ink);
+}
+
+option:checked,
+option:hover,
+option:focus {
+  background-color: var(--color-accent);
+  color: white;
+}
+
+/* ---------------------------------------------------------------------
+ * Shared component classes — one definition per pattern so buttons,
+ * cards, inputs, and badges stay visually identical everywhere they're
+ * used instead of being re-implemented per page.
+ * ------------------------------------------------------------------- */
+@layer components {
+  .surface-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 1rem;
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.3),
+      0 16px 40px -24px rgba(0, 0, 0, 0.65);
+  }
+
+  .surface-card-hover {
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease;
+  }
+  .surface-card-hover:hover {
+    border-color: var(--color-border-strong);
+    background-color: var(--color-surface-hover);
+  }
+
+  .glass {
+    background-color: rgba(11, 14, 22, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-color: var(--color-border);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.625rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      box-shadow 0.15s ease,
+      transform 0.1s ease,
+      opacity 0.15s ease;
+  }
+  .btn:active {
+    transform: scale(0.98);
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+    transform: none;
+  }
+
+  .btn-primary {
+    background-color: var(--color-accent);
+    color: white;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-accent-hover);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.1) inset,
+      0 0 0 4px var(--color-accent-soft);
+  }
+
+  .btn-secondary {
+    background-color: rgba(255, 255, 255, 0.03);
+    color: var(--color-ink);
+    border: 1px solid var(--color-border);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: var(--color-border-strong);
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--color-ink-muted);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    color: var(--color-ink);
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .btn-danger {
+    background-color: transparent;
+    color: var(--color-danger);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: var(--color-danger-soft);
+    border-color: rgba(248, 113, 113, 0.5);
+  }
+
+  .input-field {
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--color-border);
+    border-radius: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    color: var(--color-ink);
+    font-size: 0.875rem;
+    transition:
+      border-color 0.15s ease,
+      background-color 0.15s ease;
+  }
+  .input-field::placeholder {
+    color: var(--color-ink-faint);
+  }
+  .input-field:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    background-color: rgba(255, 255, 255, 0.035);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 9999px;
+    padding: 0.25rem 0.625rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--color-surface-2);
+    border-radius: 0.5rem;
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.06),
+      transparent
+    );
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
 
 /* Brief settle-in for a freshly rendered interview question — reinforces
    that a new question just arrived without being distracting (see
@@ -16,4 +247,32 @@
 
 .animate-question-fade-in {
   animation: question-fade-in 0.25s ease-out;
+}
+
+/* Recording waveform bars — animate only while actually recording (see
+   components/RecordingWaveform.jsx). Staggered per-bar delay/duration
+   gives a natural, non-repeating look from a single keyframe. */
+@keyframes waveform-bar {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.animate-waveform-bar {
+  animation-name: waveform-bar;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* Custom, dark-appropriate scrollbar for the sidebar/drawer. */
+.styled-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.styled-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-strong);
+  border-radius: 9999px;
 }

@@ -1,17 +1,15 @@
 function CategoryBreakdownChart({ categories }) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       {categories.map((category) => (
         <div key={category.category}>
-          <div className="mb-1 flex items-center justify-between text-sm">
-            <span className="text-slate-700">{category.label}</span>
-            <span className="font-medium text-slate-900">
-              {category.average_score}%
-            </span>
+          <div className="mb-1.5 flex items-center justify-between text-sm">
+            <span className="text-ink-muted">{category.label}</span>
+            <span className="font-medium text-ink">{category.average_score}%</span>
           </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
             <div
-              className="h-full rounded-full bg-indigo-500"
+              className="h-full rounded-full bg-accent transition-[width] duration-700 ease-out"
               style={{ width: `${Math.min(100, category.average_score)}%` }}
             />
           </div>

@@ -1,16 +1,12 @@
 const DIFFICULTY_STYLES = {
-  easy: 'bg-emerald-100 text-emerald-700',
-  medium: 'bg-amber-100 text-amber-700',
-  hard: 'bg-rose-100 text-rose-700',
+  easy: 'bg-success-soft text-success',
+  medium: 'bg-warning-soft text-warning',
+  hard: 'bg-danger-soft text-danger',
 }
 
 function DifficultyBadge({ difficulty }) {
   return (
-    <span
-      className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-        DIFFICULTY_STYLES[difficulty] || 'bg-slate-100 text-slate-700'
-      }`}
-    >
+    <span className={`badge capitalize ${DIFFICULTY_STYLES[difficulty] || 'bg-surface-2 text-ink-muted'}`}>
       {difficulty}
     </span>
   )

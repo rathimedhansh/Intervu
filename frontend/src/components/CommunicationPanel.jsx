@@ -6,23 +6,17 @@ const STATUS_TEXT = {
 }
 
 const STATUS_TONE = {
-  active: 'bg-emerald-50 text-emerald-700',
-  unsupported: 'bg-slate-100 text-slate-500',
-  denied: 'bg-amber-50 text-amber-700',
-  error: 'bg-amber-50 text-amber-700',
+  active: 'bg-success-soft text-success',
+  unsupported: 'bg-surface-2 text-ink-faint',
+  denied: 'bg-warning-soft text-warning',
+  error: 'bg-warning-soft text-warning',
 }
 
 function StatusPill({ label, status }) {
   if (status === 'idle' || !status) return null
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
-        STATUS_TONE[status] ?? 'bg-slate-100 text-slate-500'
-      }`}
-    >
-      {status === 'active' && (
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-      )}
+    <span className={`badge ${STATUS_TONE[status] ?? 'bg-surface-2 text-ink-faint'}`}>
+      {status === 'active' && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />}
       {label}: {STATUS_TEXT[status] ?? status}
     </span>
   )
@@ -34,7 +28,7 @@ function CommunicationPanel({ speechEnabled, speechStatus, cameraEnabled, camera
   if (!speechEnabled && !cameraEnabled) return null
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-2/60 px-3 py-2">
       {speechEnabled && <StatusPill label="Speech" status={speechStatus} />}
       {cameraEnabled && <StatusPill label="Camera" status={cameraStatus} />}
     </div>

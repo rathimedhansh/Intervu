@@ -4,6 +4,12 @@ import { createInterview } from '../api/interviews'
 import { listResumes, uploadResume } from '../api/resumes'
 import CommunicationConsent from '../components/CommunicationConsent'
 import { MAX_FOCUS_CATEGORIES, RUBRIC_CATEGORIES } from '../constants/rubricCategories'
+import {
+  IconCheck,
+  IconChevronLeft,
+  IconChevronRight,
+  IconFileText,
+} from '../components/icons'
 
 // Kept in sync with backend/app/services/question_generation/bank.py ROLES.
 // The backend accepts any non-blank role string (not just this list) — see
@@ -39,7 +45,8 @@ const MAX_ROLE_LENGTH = 100
 // (see backend/app/services/interview_flow) — the backend clamps into that
 // range regardless, but only offering valid values avoids a confusing
 // silent adjustment. Time estimates assume ~2-3 min per question (reading,
-// answering, and the occasional follow-up).
+// answering, and the occasional follow-up) — this doubles as the "interview
+// length / duration" control since there's no separate duration field.
 const QUESTION_COUNT_OPTIONS = [
   { value: 5, label: '5 questions', time: '~10–15 min' },
   { value: 7, label: '7 questions', time: '~15–20 min' },
@@ -52,21 +59,13 @@ const DIFFICULTY_OPTIONS = [
   { value: 'hard', label: 'Hard', description: 'Deeper technical and behavioral probing.' },
 ]
 
-// Mirrors backend/app/services/answer_evaluation/rubrics.py — kept as
-// plain labels (not the point values) since this is a "here's the shape
-// of the feedback" preview, not a literal rubric reproduction.
-const EVALUATION_CRITERIA = [
-  {
-    type: 'Behavioral questions',
-    categories: ['Relevance', 'Clarity', 'Structure', 'Specificity / examples', 'Communication'],
-  },
-  {
-    type: 'Technical questions',
-    categories: ['Technical accuracy', 'Completeness', 'Reasoning', 'Clarity', 'Examples'],
-  },
-]
-
 const MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024
+
+const STEPS = [
+  { number: '01', label: 'Role & Focus' },
+  { number: '02', label: 'Interview Preferences' },
+  { number: '03', label: 'Review & Start' },
+]
 
 function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString(undefined, {
@@ -76,31 +75,60 @@ function formatDate(dateString) {
   })
 }
 
+function StepIndicator({ step }) {
+  return (
+    <ol className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-0">
+      {STEPS.map((item, index) => {
+        const stepNumber = index + 1
+        const isActive = stepNumber === step
+        const isDone = stepNumber < step
+        return (
+          <li key={item.number} className="flex flex-1 items-center">
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                  isActive
+                    ? 'bg-accent text-white'
+                    : isDone
+                      ? 'bg-accent-soft text-accent'
+                      : 'bg-surface-2 text-ink-faint'
+                }`}
+              >
+                {isDone ? <IconCheck className="h-3.5 w-3.5" /> : item.number}
+              </span>
+              <span className={`text-sm font-medium ${isActive ? 'text-ink' : 'text-ink-faint'}`}>
+                {item.label}
+              </span>
+            </div>
+            {stepNumber < STEPS.length && (
+              <span className="mx-3 hidden h-px flex-1 bg-border sm:block" aria-hidden="true" />
+            )}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
 function PreviousResumePicker({ resumes, onSelect }) {
   if (resumes.length === 0) return null
   return (
     <div className="mb-3">
-      <p className="mb-1.5 text-xs font-medium text-slate-600">
-        Use a previous resume
-      </p>
+      <p className="mb-1.5 text-xs font-medium text-ink-muted">Use a previous resume</p>
       <div className="flex flex-col gap-1.5">
         {resumes.map((r) => (
           <button
             type="button"
             key={r.id}
             onClick={() => onSelect(r)}
-            className="flex items-center justify-between gap-3 rounded-lg border border-slate-300 px-3 py-2 text-left text-sm transition-colors hover:border-indigo-400 hover:bg-indigo-50"
+            className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-left text-sm transition-colors hover:border-accent-border hover:bg-accent-soft"
           >
-            <span className="truncate font-medium text-slate-800">
-              {r.original_filename}
-            </span>
-            <span className="shrink-0 text-xs text-slate-400">
-              {formatDate(r.created_at)}
-            </span>
+            <span className="truncate font-medium text-ink">{r.original_filename}</span>
+            <span className="shrink-0 text-xs text-ink-faint">{formatDate(r.created_at)}</span>
           </button>
         ))}
       </div>
-      <p className="mt-2 text-xs text-slate-400">or upload a new one below</p>
+      <p className="mt-2 text-xs text-ink-faint">or upload a new one below</p>
     </div>
   )
 }
@@ -108,27 +136,28 @@ function PreviousResumePicker({ resumes, onSelect }) {
 function ResumeSummary({ resume, onRemove }) {
   const { analysis } = resume
   return (
-    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+    <div className="rounded-xl border border-success/25 bg-success-soft p-4">
       <div className="mb-2 flex items-start justify-between gap-3">
-        <p className="text-sm font-medium text-emerald-900">
+        <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
+          <IconFileText className="h-3.5 w-3.5 text-success" />
           {resume.original_filename}
         </p>
         <button
           type="button"
           onClick={onRemove}
-          className="shrink-0 text-xs font-medium text-emerald-700 underline hover:text-emerald-900"
+          className="shrink-0 text-xs font-medium text-success underline hover:text-ink"
         >
           Remove
         </button>
       </div>
-      <p className="mb-3 text-sm text-emerald-800">{analysis.summary}</p>
+      <p className="mb-3 text-sm text-ink-muted">{analysis.summary}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         {analysis.strong_areas.length > 0 && (
           <div>
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-success">
               Strong areas
             </h3>
-            <ul className="list-disc space-y-0.5 pl-4 text-xs text-emerald-800">
+            <ul className="list-disc space-y-0.5 pl-4 text-xs text-ink-muted">
               {analysis.strong_areas.map((item, i) => (
                 <li key={i}>{item}</li>
               ))}
@@ -137,15 +166,12 @@ function ResumeSummary({ resume, onRemove }) {
         )}
         {analysis.key_technologies.length > 0 && (
           <div>
-            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-success">
               Key technologies
             </h3>
             <div className="flex flex-wrap gap-1">
               {analysis.key_technologies.map((tech, i) => (
-                <span
-                  key={i}
-                  className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800"
-                >
+                <span key={i} className="badge bg-surface-2 text-ink-muted">
                   {tech}
                 </span>
               ))}
@@ -153,93 +179,57 @@ function ResumeSummary({ resume, onRemove }) {
           </div>
         )}
       </div>
-      <p className="mt-3 text-xs text-emerald-700">
-        Interview questions will be generated from this resume.
-      </p>
     </div>
   )
 }
 
-function SectionCard({ step, title, hint, children }) {
+function SectionHeading({ title, hint, aside }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5">
-      <div className="mb-3 flex items-baseline gap-2">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-semibold text-indigo-700">
-          {step}
-        </span>
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+    <div className="mb-4 flex items-start justify-between gap-3">
+      <div>
+        <h2 className="text-base font-semibold text-ink">{title}</h2>
+        {hint && <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>}
       </div>
-      {hint && <p className="mb-3 text-xs text-slate-500">{hint}</p>}
-      {children}
+      {aside && <span className="shrink-0 text-xs font-medium text-ink-faint">{aside}</span>}
     </div>
   )
 }
 
-function SegmentedOption({ selected, onSelect, label, description }) {
+function OptionCard({ selected, onSelect, label, description }) {
   return (
     <button
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
+      className={`rounded-xl border px-3.5 py-3 text-left transition-colors ${
         selected
-          ? 'border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600'
-          : 'border-slate-300 hover:bg-slate-50'
+          ? 'border-accent-border bg-accent-soft ring-1 ring-accent'
+          : 'border-border hover:border-border-strong hover:bg-surface-hover'
       }`}
     >
-      <span className="block text-sm font-medium text-slate-900">{label}</span>
-      <span className="block text-xs text-slate-500">{description}</span>
+      <span className="block text-sm font-medium text-ink">{label}</span>
+      <span className="block text-xs text-ink-muted">{description}</span>
     </button>
   )
 }
 
-function FocusCategoryPicker({ selected, onToggle, prefilled }) {
-  const atLimit = selected.length >= MAX_FOCUS_CATEGORIES
+function FocusChip({ selected, disabled, onToggle, label, title }) {
   return (
-    <div>
-      {prefilled && selected.length > 0 && (
-        <p className="mb-2 text-xs text-indigo-600">
-          Prefilled from your dashboard's weakest areas — adjust anytime.
-        </p>
-      )}
-      <div className="flex flex-wrap gap-1.5">
-        {RUBRIC_CATEGORIES.map((category) => {
-          const isSelected = selected.includes(category.key)
-          const disabled = !isSelected && atLimit
-          return (
-            <button
-              type="button"
-              key={category.key}
-              onClick={() => onToggle(category.key)}
-              disabled={disabled}
-              title={category.description}
-              aria-pressed={isSelected}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                isSelected
-                  ? 'border-indigo-600 bg-indigo-600 text-white'
-                  : 'border-slate-300 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {category.label}
-            </button>
-          )
-        })}
-      </div>
-      <p className="mt-2 text-xs text-slate-400">
-        {selected.length > 0
-          ? `${selected.length}/${MAX_FOCUS_CATEGORIES} selected — questions will lean toward these.`
-          : 'None selected — questions will cover a natural mix, same as before.'}
-      </p>
-    </div>
-  )
-}
-
-function SummaryRow({ label, value }) {
-  return (
-    <div className="flex items-start justify-between gap-3 text-sm">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right font-medium text-slate-900">{value}</dd>
-    </div>
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      title={title}
+      aria-pressed={selected}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        selected
+          ? 'border-accent bg-accent text-white'
+          : 'border-border text-ink-muted hover:border-border-strong hover:bg-surface-hover'
+      }`}
+    >
+      {selected && <IconCheck className="h-3 w-3" />}
+      {label}
+    </button>
   )
 }
 
@@ -249,6 +239,7 @@ function InterviewSetupPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const fileInputRef = useRef(null)
+  const [step, setStep] = useState(1)
   const [role, setRole] = useState(ROLES[0])
   const [customRole, setCustomRole] = useState('')
   const [difficulty, setDifficulty] = useState('medium')
@@ -301,6 +292,7 @@ function InterviewSetupPage() {
   const selectedQuestionOption =
     QUESTION_COUNT_OPTIONS.find((option) => option.value === questionCount) ??
     QUESTION_COUNT_OPTIONS[0]
+  const selectedDifficultyOption = DIFFICULTY_OPTIONS.find((option) => option.value === difficulty)
 
   async function handleResumeChange(event) {
     const file = event.target.files?.[0]
@@ -342,6 +334,14 @@ function InterviewSetupPage() {
 
   async function handleSubmit(event) {
     event.preventDefault()
+    // The wizard shares one <form>, so pressing Enter on step 1/2 (e.g.
+    // after typing a custom role) fires this same handler — treat that as
+    // "advance to the next step" instead of creating the interview early.
+    if (step !== STEPS.length) {
+      if (step === 1 && !roleIsValid) return
+      goNext()
+      return
+    }
     if (!canSubmit) return
     setError(null)
 
@@ -361,223 +361,262 @@ function InterviewSetupPage() {
     }
   }
 
+  function goNext() {
+    setStep((current) => Math.min(STEPS.length, current + 1))
+  }
+
+  function goBack() {
+    setStep((current) => Math.max(1, current - 1))
+  }
+
   return (
-    <div className="mx-auto max-w-4xl">
-      <h1 className="mb-2 text-2xl font-semibold text-slate-900">
-        Set up your interview
-      </h1>
-      <p className="mb-8 max-w-2xl text-slate-600">
-        Pick a role, difficulty, and how many questions you want to practice.
-        Questions adapt to your answers as you go, and difficulty adjusts
-        gradually based on how you're doing.
+    <div className="mx-auto max-w-[1100px]">
+      <button
+        type="button"
+        onClick={() => navigate('/dashboard')}
+        className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-ink-faint transition-colors hover:text-ink"
+      >
+        <IconChevronLeft className="h-3.5 w-3.5" />
+        Dashboard
+      </button>
+
+      <h1 className="mb-1 text-[28px] font-semibold tracking-tight text-ink">New Interview</h1>
+      <p className="mb-6 text-sm text-ink-muted">
+        Customize your interview and get AI-generated questions tailored to you.
       </p>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_300px] lg:items-start">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <SectionCard step={1} title="Target role">
-            <select
-              id="role"
-              value={role}
-              onChange={(event) => setRole(event.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-            >
-              {ROLES.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-              <option value={OTHER_ROLE_VALUE}>Other / Custom Role</option>
-            </select>
+      <StepIndicator step={step} />
 
-            {isCustomRole && (
-              <div className="mt-2">
-                <input
-                  type="text"
-                  value={customRole}
-                  onChange={(event) => setCustomRole(event.target.value)}
-                  placeholder="Enter the role you want to practice for"
-                  maxLength={MAX_ROLE_LENGTH}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-indigo-500 focus:outline-none"
-                />
-                <div className="mt-1 flex items-center justify-between">
-                  <p className="text-xs text-slate-500">
-                    {customRole.trim().length === 0 && 'Enter a role to continue.'}
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {customRole.length}/{MAX_ROLE_LENGTH}
-                  </p>
-                </div>
-              </div>
-            )}
-          </SectionCard>
-
-          <SectionCard
-            step={2}
-            title="Focus areas (optional)"
-            hint="Practicing weak areas? Pick up to 3 rubric categories and today's questions will lean toward exercising them."
-          >
-            <FocusCategoryPicker
-              selected={focusCategories}
-              onToggle={toggleFocusCategory}
-              prefilled={arrivedWithPrefilledFocus}
-            />
-          </SectionCard>
-
-          <SectionCard step={3} title="Difficulty">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {DIFFICULTY_OPTIONS.map((option) => (
-                <SegmentedOption
-                  key={option.value}
-                  selected={difficulty === option.value}
-                  onSelect={() => setDifficulty(option.value)}
-                  label={option.label}
-                  description={option.description}
-                />
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            step={4}
-            title="Interview length"
-            hint="The AI may ask a follow-up on an interesting answer — this is the target number of main questions."
-          >
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {QUESTION_COUNT_OPTIONS.map((option) => (
-                <SegmentedOption
-                  key={option.value}
-                  selected={questionCount === option.value}
-                  onSelect={() => setQuestionCount(option.value)}
-                  label={option.label}
-                  description={option.time}
-                />
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            step={5}
-            title="Resume"
-            hint="Optional. PDF only, up to 5MB. Questions will reference your projects, technologies, and experience."
-          >
-            {resume ? (
-              <ResumeSummary resume={resume} onRemove={handleRemoveResume} />
-            ) : (
-              <>
-                <PreviousResumePicker resumes={previousResumes} onSelect={setResume} />
-                <input
-                  id="resume"
-                  ref={fileInputRef}
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handleResumeChange}
-                  disabled={isUploadingResume}
-                  className="w-full rounded-lg border border-dashed border-slate-300 px-3 py-2 text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
-                />
-              </>
-            )}
-
-            {isUploadingResume && (
-              <p className="mt-2 text-sm text-slate-500">
-                Uploading and analyzing resume...
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        {step === 1 && (
+          <div className="surface-card p-5 sm:p-6">
+            <div className="mb-5">
+              <h2 className="text-lg font-semibold text-ink">Let's create your interview</h2>
+              <p className="mt-1 text-sm text-ink-muted">
+                Choose what you're preparing for and what you want to improve.
               </p>
-            )}
-            {resumeError && (
-              <p className="mt-2 text-sm text-red-600">{resumeError}</p>
-            )}
-          </SectionCard>
+            </div>
 
-          <SectionCard step={6} title="Communication analysis">
+            <div className="mb-6">
+              <label htmlFor="role" className="mb-1.5 block text-sm font-medium text-ink-muted">
+                Target role
+              </label>
+              <div className="relative">
+                <select
+                  id="role"
+                  value={role}
+                  onChange={(event) => setRole(event.target.value)}
+                  className="input-field appearance-none pr-9"
+                >
+                  {ROLES.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                  <option value={OTHER_ROLE_VALUE}>Other / Custom Role</option>
+                </select>
+                <IconChevronRight className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rotate-90 text-ink-faint" />
+              </div>
+
+              {isCustomRole && (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={customRole}
+                    onChange={(event) => setCustomRole(event.target.value)}
+                    placeholder="Enter the role you want to practice for"
+                    maxLength={MAX_ROLE_LENGTH}
+                    className="input-field"
+                  />
+                  <div className="mt-1 flex items-center justify-between">
+                    <p className="text-xs text-ink-faint">
+                      {customRole.trim().length === 0 && 'Enter a role to continue.'}
+                    </p>
+                    <p className="text-xs text-ink-faint">
+                      {customRole.length}/{MAX_ROLE_LENGTH}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <SectionHeading
+                title="Focus areas"
+                hint="Choose up to 3 areas you'd like the interview to emphasize."
+                aside={`${focusCategories.length} / ${MAX_FOCUS_CATEGORIES} selected`}
+              />
+              {arrivedWithPrefilledFocus && (
+                <p className="mb-2 text-xs text-accent">
+                  Prefilled from your dashboard's weakest areas — adjust anytime.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                {RUBRIC_CATEGORIES.map((category) => {
+                  const isSelected = focusCategories.includes(category.key)
+                  const disabled = !isSelected && focusCategories.length >= MAX_FOCUS_CATEGORIES
+                  return (
+                    <FocusChip
+                      key={category.key}
+                      selected={isSelected}
+                      disabled={disabled}
+                      onToggle={() => toggleFocusCategory(category.key)}
+                      label={category.label}
+                      title={category.description}
+                    />
+                  )
+                })}
+              </div>
+              <p className="mt-2 text-xs text-ink-faint">
+                {focusCategories.length === 0 && 'None selected — questions will cover a natural mix, same as before.'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="flex flex-col gap-4">
+            <div className="surface-card p-5">
+              <SectionHeading title="Difficulty" hint="Choose the difficulty level." />
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {DIFFICULTY_OPTIONS.map((option) => (
+                  <OptionCard
+                    key={option.value}
+                    selected={difficulty === option.value}
+                    onSelect={() => setDifficulty(option.value)}
+                    label={option.label}
+                    description={option.description}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="surface-card p-5">
+              <SectionHeading
+                title="Interview length"
+                hint="The AI may ask a follow-up on an interesting answer — this is the target number of main questions."
+              />
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {QUESTION_COUNT_OPTIONS.map((option) => (
+                  <OptionCard
+                    key={option.value}
+                    selected={questionCount === option.value}
+                    onSelect={() => setQuestionCount(option.value)}
+                    label={option.label}
+                    description={option.time}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="surface-card p-5">
+              <SectionHeading
+                title="Resume"
+                hint="Optional. PDF only, up to 5MB. Questions will reference your projects, technologies, and experience."
+              />
+              {resume ? (
+                <ResumeSummary resume={resume} onRemove={handleRemoveResume} />
+              ) : (
+                <>
+                  <PreviousResumePicker resumes={previousResumes} onSelect={setResume} />
+                  <input
+                    id="resume"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleResumeChange}
+                    disabled={isUploadingResume}
+                    className="w-full rounded-lg border border-dashed border-border px-3 py-2 text-sm text-ink-muted file:mr-3 file:rounded-md file:border-0 file:bg-accent-soft file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-accent hover:file:bg-accent/20"
+                  />
+                </>
+              )}
+
+              {isUploadingResume && (
+                <p className="mt-2 text-sm text-ink-muted">Uploading and analyzing resume...</p>
+              )}
+              {resumeError && <p className="mt-2 text-sm text-danger">{resumeError}</p>}
+            </div>
+
             <CommunicationConsent
               speechEnabled={speechEnabled}
               onSpeechChange={setSpeechEnabled}
               cameraEnabled={cameraEnabled}
               onCameraChange={setCameraEnabled}
             />
-          </SectionCard>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="rounded-lg bg-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSubmitting ? 'Starting...' : 'Begin Interview'}
-          </button>
-        </form>
-
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-6">
-          <div className="rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="mb-3 text-sm font-semibold text-slate-900">
-              Your setup
-            </h2>
-            <dl className="flex flex-col gap-2.5">
-              <SummaryRow
-                label="Role"
-                value={effectiveRole || <span className="text-slate-400">Not set</span>}
-              />
-              <SummaryRow
-                label="Focus areas"
-                value={
-                  focusCategories.length > 0
-                    ? focusCategories
-                        .map((key) => RUBRIC_CATEGORIES.find((c) => c.key === key)?.label ?? key)
-                        .join(', ')
-                    : <span className="text-slate-400">None selected</span>
-                }
-              />
-              <SummaryRow
-                label="Difficulty"
-                value={difficulty[0].toUpperCase() + difficulty.slice(1)}
-              />
-              <SummaryRow
-                label="Length"
-                value={`${selectedQuestionOption.label} (${selectedQuestionOption.time})`}
-              />
-              <SummaryRow
-                label="Resume"
-                value={resume ? 'Attached' : 'Not attached'}
-              />
-              <SummaryRow label="Speech analysis" value={speechEnabled ? 'On' : 'Off'} />
-              <SummaryRow label="Camera analysis" value={cameraEnabled ? 'On' : 'Off'} />
-            </dl>
           </div>
+        )}
 
-          <div className="rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="mb-1 text-sm font-semibold text-slate-900">
-              What we'll evaluate
-            </h2>
-            <p className="mb-3 text-xs text-slate-500">
-              Every answer is scored against a rubric matched to the question
-              type, plus written feedback and a stronger-answer example.
-            </p>
-            <div className="flex flex-col gap-3">
-              {EVALUATION_CRITERIA.map((group) => (
-                <div key={group.type}>
-                  <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {group.type}
-                  </h3>
-                  <div className="flex flex-wrap gap-1">
-                    {group.categories.map((category) => (
-                      <span
-                        key={category}
-                        className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600"
-                      >
-                        {category}
-                      </span>
-                    ))}
-                  </div>
+        {step === 3 && (
+          <div className="surface-card p-5 sm:p-6">
+            <SectionHeading title="Interview summary" hint="Review your setup before starting." />
+
+            <div className="rounded-xl border border-border bg-surface-2/60 p-4">
+              <p className="text-base font-semibold text-ink">
+                {effectiveRole || <span className="text-ink-faint">Not set</span>}
+              </p>
+              <p className="mt-1 text-sm text-ink-muted">
+                {selectedDifficultyOption?.label} difficulty · {selectedQuestionOption.label} (
+                {selectedQuestionOption.time})
+              </p>
+
+              <dl className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-ink-faint">Resume</dt>
+                  <dd className="mt-0.5 text-sm text-ink">{resume ? 'Attached' : 'Not attached'}</dd>
                 </div>
-              ))}
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-ink-faint">Speech analysis</dt>
+                  <dd className="mt-0.5 text-sm text-ink">{speechEnabled ? 'On' : 'Off'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-ink-faint">Camera analysis</dt>
+                  <dd className="mt-0.5 text-sm text-ink">{cameraEnabled ? 'On' : 'Off'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-ink-faint">Focus</dt>
+                  <dd className="mt-0.5 text-sm text-ink">
+                    {focusCategories.length > 0
+                      ? focusCategories
+                          .map((key) => RUBRIC_CATEGORIES.find((c) => c.key === key)?.label ?? key)
+                          .join(' · ')
+                      : 'None selected'}
+                  </dd>
+                </div>
+              </dl>
             </div>
-            <p className="mt-3 text-xs text-slate-500">
-              Difficulty adapts as you go — strong answers gradually raise it,
-              weaker ones ease it back.
-            </p>
+
+            {error && <p className="mt-4 text-sm text-danger">{error}</p>}
           </div>
-        </aside>
-      </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          {step > 1 ? (
+            <button type="button" onClick={goBack} className="btn btn-secondary">
+              <IconChevronLeft className="h-4 w-4" />
+              Back
+            </button>
+          ) : (
+            <span />
+          )}
+
+          {step < STEPS.length ? (
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={step === 1 && !roleIsValid}
+              className="btn btn-primary"
+            >
+              Continue
+              <IconChevronRight className="h-4 w-4" />
+            </button>
+          ) : (
+            <button type="submit" disabled={!canSubmit} className="btn btn-primary">
+              {isSubmitting ? 'Starting...' : 'Start Interview'}
+              <IconChevronRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </form>
     </div>
   )
 }

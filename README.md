@@ -1,4 +1,4 @@
-# AI Mock Interview Platform
+# Intervu
 
 A production-quality portfolio project: practice interviews with AI-driven
 questions and feedback.

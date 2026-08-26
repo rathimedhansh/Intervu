@@ -25,7 +25,7 @@ function MobileNav() {
           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent-soft text-accent">
             <IconSparkle className="h-3.5 w-3.5" />
           </span>
-          <span className="text-sm font-semibold text-ink">Mock Interviewer</span>
+          <span className="text-sm font-semibold text-ink">Intervu</span>
         </div>
         <button
           type="button"
@@ -62,7 +62,7 @@ function MobileNav() {
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent">
                     <IconSparkle className="h-4 w-4" />
                   </span>
-                  <span className="text-sm font-semibold text-ink">Mock Interviewer</span>
+                  <span className="text-sm font-semibold text-ink">Intervu</span>
                 </div>
                 <button
                   type="button"

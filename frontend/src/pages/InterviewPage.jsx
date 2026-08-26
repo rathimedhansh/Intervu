@@ -65,6 +65,111 @@ function ThinkingIndicator() {
   )
 }
 
+// TEMPORARY MIC DIAGNOSTICS (2026-08-26, round 2 — Opera GX repro). The
+// previous fix (fatal-error fallback in useSpeechAnalysis.js) did NOT
+// resolve the reported failure: mic goes green, user speaks, no transcript
+// appears anywhere, Submit stays disabled — reproduced with Communication
+// Analysis enabled in Opera GX. This panel surfaces the ENTIRE browser
+// SpeechRecognition pipeline for that (shared) path with nothing hidden —
+// including errors previous code intentionally treated as "recoverable"
+// (no-speech/aborted/network) — since a browser whose speech backend never
+// works at all (e.g. a `network`/`service-not-allowed` error repeating
+// forever) would look identical to those, and that fallback fix has no way
+// to detect it: it only reacts to the FATAL codes. Do NOT remove until the
+// real-browser root cause is confirmed and fixed.
+function MicDiagnosticsPanel({
+  speech,
+  dictation,
+  useOwnDictationMic,
+  canCaptureShared,
+  sharedCapturing,
+  answerText,
+  isSubmitting,
+}) {
+  const hasSpeechRecognition = Boolean(window.SpeechRecognition)
+  const hasWebkitSpeechRecognition = Boolean(window.webkitSpeechRecognition)
+  const submitEligible = !isSubmitting && Boolean(answerText.trim())
+  const log = speech.diag.log
+  const firstT = log[0]?.t ?? 0
+
+  return (
+    <div className="mb-4 rounded-lg border border-dashed border-warning/60 bg-warning-soft/30 p-3 font-mono text-[11px] leading-relaxed text-ink">
+      <p className="mb-1.5 font-sans text-xs font-semibold text-warning">
+        🔧 TEMP MIC DIAGNOSTICS (dev only, round 2 — do not remove until root cause confirmed)
+      </p>
+
+      <p className="font-sans font-semibold">Browser</p>
+      <ul className="ml-4 list-disc break-all">
+        <li>userAgent: {navigator.userAgent}</li>
+        <li>window.SpeechRecognition supported: {String(hasSpeechRecognition)}</li>
+        <li>window.webkitSpeechRecognition supported: {String(hasWebkitSpeechRecognition)}</li>
+        <li>constructor chosen: {speech.diag.ctorInfo?.chosen ?? '(not yet reported)'}</li>
+      </ul>
+
+      <p className="mt-2 font-sans font-semibold">Microphone (getUserMedia)</p>
+      <ul className="ml-4 list-disc">
+        <li>track label: {speech.diag.micTrack?.trackLabel || '(not yet reported)'}</li>
+        <li>track readyState: {speech.diag.micTrack?.trackReadyState ?? '(not yet reported)'}</li>
+        <li>track enabled: {String(speech.diag.micTrack?.trackEnabled ?? '(not yet reported)')}</li>
+        <li>track muted: {String(speech.diag.micTrack?.trackMuted ?? '(not yet reported)')}</li>
+      </ul>
+
+      <p className="mt-2 font-sans font-semibold">SpeechRecognition config actually applied</p>
+      <ul className="ml-4 list-disc">
+        <li>continuous: {String(speech.diag.recognitionConfig?.continuous ?? '(not yet reported)')}</li>
+        <li>interimResults: {String(speech.diag.recognitionConfig?.interimResults ?? '(not yet reported)')}</li>
+        <li>lang: {speech.diag.recognitionConfig?.lang ?? '(not yet reported)'}</li>
+        <li>maxAlternatives: {speech.diag.recognitionConfig?.maxAlternatives ?? '(not yet reported)'}</li>
+      </ul>
+
+      <p className="mt-2 font-sans font-semibold">Latest error on the shared path (raw — never hidden)</p>
+      <ul className="ml-4 list-disc">
+        <li>error code: {speech.diag.lastError?.error ?? 'none yet'}</li>
+        <li>message: {speech.diag.lastError?.message || '(none)'}</li>
+      </ul>
+
+      <p className="mt-2 font-sans font-semibold">
+        Application state — active path:{' '}
+        <strong>{useOwnDictationMic ? 'standalone dictation' : 'shared (communication-analysis)'}</strong>
+      </p>
+      <ul className="ml-4 list-disc">
+        <li>speech.status: {speech.status}</li>
+        <li>canCaptureShared: {String(canCaptureShared)}</li>
+        <li>sharedCapturing: {String(sharedCapturing)}</li>
+        <li>speech.liveTranscript: &quot;{speech.liveTranscript}&quot;</li>
+        <li>dictation.supported: {String(dictation.supported)}</li>
+        <li>dictation.isListening: {String(dictation.isListening)}</li>
+        <li>answerText: &quot;{answerText}&quot;</li>
+        <li>submit eligible: {String(submitEligible)}</li>
+      </ul>
+
+      <p className="mt-2 font-sans font-semibold">
+        Exact chronological event sequence — oldest → newest, last {log.length} shown
+      </p>
+      <div className="mt-1 max-h-64 overflow-y-auto rounded border border-warning/40 bg-canvas/60 p-2">
+        {log.length === 0 ? (
+          <p className="font-sans italic text-ink-faint">(no events yet — click Start Answer and speak)</p>
+        ) : (
+          <ol className="ml-4 list-decimal">
+            {log.map((entry, i) => (
+              <li key={i}>
+                <span className="text-ink-faint">+{entry.t - firstT}ms</span> <strong>{entry.type}</strong>
+                {entry.error !== undefined && <> error=&quot;{String(entry.error)}&quot;</>}
+                {entry.message ? <> msg=&quot;{entry.message}&quot;</> : null}
+                {entry.isFinal !== undefined && <> isFinal={String(entry.isFinal)}</>}
+                {entry.interim ? <> interim=&quot;{entry.interim}&quot;</> : null}
+                {entry.finalTranscriptSoFar ? <> final=&quot;{entry.finalTranscriptSoFar}&quot;</> : null}
+                {entry.chosen ? <> chosen={entry.chosen}</> : null}
+                {entry.willRestart !== undefined && <> willRestart={String(entry.willRestart)}</>}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function InterviewPage() {
   const { interviewId } = useParams()
   const navigate = useNavigate()
@@ -388,6 +493,18 @@ function InterviewPage() {
         cameraEnabled={cameraEnabled}
         cameraStatus={camera.status}
       />
+
+      {import.meta.env.DEV && (
+        <MicDiagnosticsPanel
+          speech={speech}
+          dictation={dictation}
+          useOwnDictationMic={useOwnDictationMic}
+          canCaptureShared={canCaptureShared}
+          sharedCapturing={sharedCapturing}
+          answerText={answerText}
+          isSubmitting={isSubmitting}
+        />
+      )}
 
       <div key={currentQuestion?.id} className="surface-card animate-question-fade-in p-4">
         {currentQuestion?.source === 'resume' && (

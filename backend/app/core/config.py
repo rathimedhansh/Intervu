@@ -10,7 +10,7 @@ _INSECURE_DEV_JWT_SECRET = "insecure-dev-secret-change-in-production"
 
 
 class Settings(BaseSettings):
-    app_name: str = "AI Mock Interviewer API"
+    app_name: str = "Intervu API"
     database_url: str = "sqlite:///./app.db"
     # Explicit dev-origin whitelist, not a wildcard: Vite falls back to the
     # next port (5174, 5175, ...) whenever the default 5173 is already taken

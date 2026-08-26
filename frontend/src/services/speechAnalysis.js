@@ -17,6 +17,16 @@ const PAUSE_MIN_SECONDS = 1.5
 const LONG_PAUSE_MIN_SECONDS = 4
 const AMPLITUDE_POLL_MS = 100
 
+// Error codes that mean retrying won't help — the underlying mic/permission
+// problem will keep failing the same way until the user (or their OS)
+// changes something. Kept identical to hooks/useDictation.js's own
+// FATAL_ERROR_CODES so both speech-input paths treat the same errors the
+// same way. Anything NOT in this set (no-speech, aborted, network, ...) is
+// treated as recoverable: recognition.onend already restarts the engine
+// on its own, so no special handling is needed for those beyond reporting
+// them.
+const FATAL_ERROR_CODES = new Set(['not-allowed', 'service-not-allowed', 'audio-capture'])
+
 function getSpeechRecognitionCtor() {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null
 }
@@ -84,6 +94,21 @@ export class SpeechAnalyzer {
     // conflicting SpeechRecognition instance (only one can be active at a
     // time in Chromium browsers).
     this._onTranscriptChange = null
+    // Optional subscriber notified when recognition hits an error that
+    // retrying can't fix (see FATAL_ERROR_CODES) — lets the React hook fall
+    // back to the standalone dictation mic instead of leaving the user with
+    // a permanently broken, silent recognition session. Non-fatal errors
+    // (no-speech, aborted, network, ...) are NOT reported here: recognition
+    // recovers from those on its own via onend's restart below.
+    this._onFatalError = null
+    // True once a fatal error has been reported — stops onend from
+    // restarting a recognition session that will only fail the same way
+    // again.
+    this._fatalErrorOccurred = false
+    // TEMPORARY MIC DIAGNOSTICS (2026-08-26, round 2 — Opera GX repro) — see
+    // onDiagnostic() below. Purely observational, never changes control
+    // flow. Do NOT remove until the real-browser root cause is confirmed.
+    this._onDiagnostic = null
   }
 
   // Registers (or clears, with null) a callback invoked with the running
@@ -93,13 +118,46 @@ export class SpeechAnalyzer {
     this._onTranscriptChange = callback
   }
 
+  // Registers (or clears, with null) a callback invoked with the error code
+  // whenever recognition hits an unrecoverable error (not-allowed,
+  // service-not-allowed, audio-capture). See _onFatalError above.
+  onFatalError(callback) {
+    this._onFatalError = callback
+  }
+
+  // TEMPORARY — registers a callback invoked with a {type, ...} diagnostic
+  // event for EVERY step of the pipeline: getUserMedia result, which
+  // SpeechRecognition constructor was chosen, the exact config applied to
+  // it, and every single native event the recognition object fires
+  // (onstart/onaudiostart/onsoundstart/onspeechstart/onresult/onspeechend/
+  // onsoundend/onaudioend/onend/onerror — including the raw error code AND
+  // message). Nothing here changes behavior; it only reports what already
+  // happens. Remove once the real-browser root cause is confirmed and fixed.
+  onDiagnostic(callback) {
+    this._onDiagnostic = callback
+  }
+
   static isSupported() {
     return isSpeechAnalysisSupported()
   }
 
   async start() {
     if (this._active) return
-    this._stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    this._onDiagnostic?.({ type: 'getUserMedia:calling' })
+    try {
+      this._stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch (err) {
+      this._onDiagnostic?.({ type: 'getUserMedia:error', name: err?.name, message: err?.message })
+      throw err
+    }
+    const track = this._stream.getAudioTracks()[0]
+    this._onDiagnostic?.({
+      type: 'getUserMedia:success',
+      trackLabel: track?.label || null,
+      trackReadyState: track?.readyState ?? null,
+      trackEnabled: track?.enabled ?? null,
+      trackMuted: track?.muted ?? null,
+    })
     this._startedAt = Date.now()
     this._active = true
 
@@ -125,22 +183,65 @@ export class SpeechAnalyzer {
 
   _startRecognition() {
     const RecognitionCtor = getSpeechRecognitionCtor()
-    if (!RecognitionCtor) return
+    this._onDiagnostic?.({
+      type: 'recognition:constructor',
+      hasSpeechRecognition: Boolean(window.SpeechRecognition),
+      hasWebkitSpeechRecognition: Boolean(window.webkitSpeechRecognition),
+      chosen: window.SpeechRecognition
+        ? 'SpeechRecognition'
+        : window.webkitSpeechRecognition
+          ? 'webkitSpeechRecognition'
+          : 'none',
+    })
+    if (!RecognitionCtor) {
+      this._onDiagnostic?.({ type: 'recognition:unsupported' })
+      return
+    }
 
     try {
       const recognition = new RecognitionCtor()
       recognition.continuous = true
       recognition.interimResults = true
       recognition.lang = 'en-US'
+      recognition.maxAlternatives = 1
+      this._onDiagnostic?.({
+        type: 'recognition:created',
+        continuous: recognition.continuous,
+        interimResults: recognition.interimResults,
+        lang: recognition.lang,
+        maxAlternatives: recognition.maxAlternatives,
+      })
+
       recognition.onstart = () => {
         this._transcriptAvailable = true
+        this._onDiagnostic?.({ type: 'onstart' })
+      }
+      recognition.onaudiostart = () => {
+        this._onDiagnostic?.({ type: 'onaudiostart' })
+      }
+      recognition.onsoundstart = () => {
+        this._onDiagnostic?.({ type: 'onsoundstart' })
+      }
+      recognition.onspeechstart = () => {
+        this._onDiagnostic?.({ type: 'onspeechstart' })
+      }
+      recognition.onspeechend = () => {
+        this._onDiagnostic?.({ type: 'onspeechend' })
+      }
+      recognition.onsoundend = () => {
+        this._onDiagnostic?.({ type: 'onsoundend' })
+      }
+      recognition.onaudioend = () => {
+        this._onDiagnostic?.({ type: 'onaudioend' })
       }
       recognition.onresult = (event) => {
         let finalText = ''
         let interim = ''
+        let sawFinalThisEvent = false
         for (let i = event.resultIndex; i < event.results.length; i++) {
           if (event.results[i].isFinal) {
             finalText += event.results[i][0].transcript + ' '
+            sawFinalThisEvent = true
             const confidence = event.results[i][0].confidence
             if (typeof confidence === 'number' && confidence > 0) {
               this._confidenceSum += confidence
@@ -150,27 +251,60 @@ export class SpeechAnalyzer {
             interim += event.results[i][0].transcript
           }
         }
+        // Never cleared on onend/restart below — this is the whole
+        // question's accumulated final transcript, exactly like
+        // useDictation.js's finalTextRef. A restart only replaces the
+        // native recognition object; it must never lose what was already
+        // said.
         if (finalText) this._transcript += finalText
         this._onTranscriptChange?.(`${this._transcript}${interim}`.trim())
+        this._onDiagnostic?.({
+          type: 'onresult',
+          isFinal: sawFinalThisEvent,
+          interim,
+          finalTranscriptSoFar: this._transcript.trim(),
+        })
       }
       recognition.onend = () => {
+        const willRestart = this._active && !this._fatalErrorOccurred
+        this._onDiagnostic?.({ type: 'onend', willRestart })
         // Some browsers auto-stop recognition after a period of silence;
         // restart while the analyzer is still active so a long answer with
-        // pauses doesn't silently lose transcription.
-        if (this._active) {
+        // pauses doesn't silently lose transcription. Skipped once a fatal
+        // error has been reported (below) — restarting would just fail the
+        // same way again, e.g. after permission was revoked.
+        if (willRestart) {
           try {
             recognition.start()
-          } catch {
-            // Already starting/stopping — ignore, next poll will retry.
+            this._onDiagnostic?.({ type: 'recognition:restarted' })
+          } catch (err) {
+            this._onDiagnostic?.({ type: 'recognition:restart-threw', message: err?.message })
           }
         }
       }
-      recognition.onerror = () => {
-        // Duration/pause metrics keep working independently of transcription.
+      recognition.onerror = (event) => {
+        const code = event?.error
+        // DO NOT hide any error here — report every one, fatal or not, so
+        // real-browser behavior (e.g. a speech backend that isn't wired up
+        // at all in some browsers) is fully visible instead of guessed at.
+        this._onDiagnostic?.({ type: 'onerror', error: code, message: event?.message || null })
+        // "aborted" fires routinely when stop()/abort() is called (e.g.
+        // reset() tearing down between questions) or a fresh restart races
+        // the previous session's teardown — not a real failure. "no-speech"
+        // and "network" are recoverable: recognition.onend above restarts
+        // the engine on its own, and duration/pause metrics keep working
+        // independently of transcription either way. Only report — and
+        // stop retrying — errors that retrying can't fix.
+        if (FATAL_ERROR_CODES.has(code)) {
+          this._fatalErrorOccurred = true
+          this._onFatalError?.(code)
+        }
       }
       recognition.start()
+      this._onDiagnostic?.({ type: 'recognition:start-called' })
       this._recognition = recognition
-    } catch {
+    } catch (err) {
+      this._onDiagnostic?.({ type: 'recognition:start-threw', message: err?.message })
       this._recognition = null
     }
   }

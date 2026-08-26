@@ -18,7 +18,7 @@ function PublicLayout() {
               <IconSparkle className="h-4 w-4" />
             </span>
             <span className="text-sm font-semibold tracking-tight text-ink">
-              Mock Interviewer
+              Intervu
             </span>
           </NavLink>
 

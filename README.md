@@ -24,7 +24,6 @@ cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
-API available at http://127.0.0.1:8000, docs at http://127.0.0.1:8000/docs.
 
 ### Frontend
 
@@ -33,4 +32,3 @@ cd frontend
 npm run dev
 ```
 
-App available at http://127.0.0.1:5173.
